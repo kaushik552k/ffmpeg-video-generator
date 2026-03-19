@@ -1,0 +1,209 @@
+{
+    "composition": {
+        "fps": 30,
+        "id": "hST7DUBDmxE2d56Y",
+        "size": {
+            "height": 1080,
+            "width": 1920
+        },
+        "trackItemIds": [
+            "bOsyKLhUPgAEuz9r",
+            "G9EduRY9hAznY902",
+            "RQvFSToanrdaUu5c"
+        ],
+        "trackItemsMap": {
+            "G9EduRY9hAznY902": {
+                "details": {
+                    "WebkitTextStrokeColor": "#ffffff",
+                    "WebkitTextStrokeWidth": "0px",
+                    "backgroundColor": "transparent",
+                    "border": "none",
+                    "borderColor": "#000000",
+                    "borderWidth": 0,
+                    "boxShadow": {
+                        "blur": 0,
+                        "color": "#ffffff",
+                        "x": 0,
+                        "y": 0
+                    },
+                    "color": "#ffffff",
+                    "fontFamily": "Roboto-Bold",
+                    "fontSize": 80,
+                    "fontStyle": "normal",
+                    "fontUrl": "https://fonts.gstatic.com/s/roboto/v29/KFOlCnqEu92Fr1MmWUlvAx05IsDqlA.ttf",
+                    "fontWeight": "normal",
+                    "height": 192,
+                    "left": "1011.46px",
+                    "letterSpacing": "normal",
+                    "lineHeight": "normal",
+                    "opacity": 100,
+                    "skewX": 0,
+                    "skewY": 0,
+                    "text": "Heading and some body",
+                    "textAlign": "center",
+                    "textDecoration": "none",
+                    "textShadow": "none",
+                    "textTransform": "none",
+                    "top": "414.712px",
+                    "transform": "none",
+                    "width": 600,
+                    "wordBreak": "normal",
+                    "wordSpacing": "normal",
+                    "wordWrap": "break-word"
+                },
+                "display": {
+                    "from": 0,
+                    "to": 5000
+                },
+                "id": "G9EduRY9hAznY902",
+                "isMain": false,
+                "metadata": {},
+                "name": "text",
+                "type": "text"
+            },
+            "RQvFSToanrdaUu5c": {
+                "details": {
+                    "WebkitTextStrokeColor": "#ffffff",
+                    "WebkitTextStrokeWidth": "0px",
+                    "backgroundColor": "transparent",
+                    "border": "none",
+                    "borderColor": "#000000",
+                    "borderWidth": 0,
+                    "boxShadow": {
+                        "blur": 0,
+                        "color": "#ffffff",
+                        "x": 0,
+                        "y": 0
+                    },
+                    "color": "#ffffff",
+                    "fontFamily": "Roboto-Bold",
+                    "fontSize": 80,
+                    "fontStyle": "normal",
+                    "fontUrl": "https://fonts.gstatic.com/s/roboto/v29/KFOlCnqEu92Fr1MmWUlvAx05IsDqlA.ttf",
+                    "fontWeight": "normal",
+                    "height": 96,
+                    "left": "392.746px",
+                    "letterSpacing": "normal",
+                    "lineHeight": "normal",
+                    "opacity": 100,
+                    "skewX": 0,
+                    "skewY": 0,
+                    "text": "{{dynamicText}}",
+                    "textAlign": "center",
+                    "textDecoration": "none",
+                    "textShadow": "none",
+                    "textTransform": "none",
+                    "top": "708px",
+                    "transform": "none",
+                    "width": 600,
+                    "wordBreak": "normal",
+                    "wordSpacing": "normal",
+                    "wordWrap": "break-word"
+                },
+                "display": {
+                    "from": 0,
+                    "to": 5000
+                },
+                "id": "RQvFSToanrdaUu5c",
+                "isMain": false,
+                "metadata": {},
+                "name": "text",
+                "type": "text"
+            },
+            "bOsyKLhUPgAEuz9r": {
+                "details": {
+                    "borderColor": "#000000",
+                    "borderRadius": 0,
+                    "borderWidth": 0,
+                    "boxShadow": {
+                        "blur": 0,
+                        "color": "#000000",
+                        "x": 0,
+                        "y": 0
+                    },
+                    "height": 360,
+                    "left": "640px",
+                    "opacity": 100,
+                    "src": "https://uat-visuals-pub.s3.ap-south-1.amazonaws.com/media_templates/121826074e47a6048f6574e12edd7560.mp4",
+                    "top": "360px",
+                    "transform": "scale(3)",
+                    "volume": 100,
+                    "width": 640
+                },
+                "display": {
+                    "from": 0,
+                    "to": 30000
+                },
+                "duration": 30000,
+                "id": "bOsyKLhUPgAEuz9r",
+                "isMain": false,
+                "name": "newContent",
+                "playbackRate": 1,
+                "trim": {
+                    "from": 0,
+                    "to": 30000
+                },
+                "type": "video"
+            }
+        },
+        "tracks": [
+            {
+                "accepts": [
+                    "text",
+                    "audio",
+                    "helper",
+                    "video",
+                    "image",
+                    "caption",
+                    "template"
+                ],
+                "id": "fKkASLEX6ozH7bDEjq_NU",
+                "items": [
+                    "RQvFSToanrdaUu5c"
+                ],
+                "magnetic": false,
+                "static": false,
+                "type": "text"
+            },
+            {
+                "accepts": [
+                    "text",
+                    "audio",
+                    "helper",
+                    "video",
+                    "image",
+                    "caption",
+                    "template"
+                ],
+                "id": "e5noExuT6i9Nxgr9qVYvu",
+                "items": [
+                    "G9EduRY9hAznY902"
+                ],
+                "magnetic": false,
+                "static": false,
+                "type": "text"
+            },
+            {
+                "accepts": [
+                    "text",
+                    "audio",
+                    "helper",
+                    "video",
+                    "image",
+                    "caption",
+                    "template"
+                ],
+                "id": "j1LfwJAoR9G3IhjE",
+                "items": [
+                    "bOsyKLhUPgAEuz9r"
+                ],
+                "magnetic": false,
+                "static": false,
+                "type": "video"
+            }
+        ]
+    },
+    "dynamicFields": {
+        "dynamicText": "POC Demo Video!"
+    }
+}
