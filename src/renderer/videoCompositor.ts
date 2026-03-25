@@ -1,6 +1,7 @@
 import ffmpeg from 'fluent-ffmpeg';
 import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
 import path from 'path';
+import os from 'os';
 import { Composition, VideoTrackItem } from '../shared/types';
 import { RenderedTextLayer } from './textRenderer';
 import { msToSeconds, parsePx, parseTransform, ensureDir } from '../shared/utils';
@@ -73,7 +74,7 @@ export async function compositeVideo(opts: CompositeOptions): Promise<void> {
         let currentOut = 'canvas';
 
         // 1) Prepare canvas
-        filters.push(`[0:v]scale=${width}:${height},fps=${fps},format=rgba[canvas]`);
+        filters.push(`[0:v]scale=${width}:${height},fps=${fps}[canvas]`);
 
         // 2) Process video items — scale then overlay
         //    CSS transform: scale(N) scales from the element's CENTER.
@@ -106,7 +107,7 @@ export async function compositeVideo(opts: CompositeOptions): Promise<void> {
             const scaledLabel = `vscaled${i}`;
             const afterLabel = `after_v${i}`;
 
-            filters.push(`[${inputIdx}:v]scale=${sw}:${sh},format=rgba[${scaledLabel}]`);
+            filters.push(`[${inputIdx}:v]scale=${sw}:${sh}[${scaledLabel}]`);
             filters.push(
                 `[${currentOut}][${scaledLabel}]overlay=x=${overlayX}:y=${overlayY}:enable='between(t,${fromSec},${toSec})'[${afterLabel}]`
             );
@@ -146,14 +147,21 @@ export async function compositeVideo(opts: CompositeOptions): Promise<void> {
         filters.push(`[${currentOut}]format=yuv420p[out]`);
 
         const filterStr = filters.join('; ');
-        console.log('\n[FFmpeg] filter_complex:\n', filterStr, '\n');
+        // Uncomment to debug filtergraph:
+        // console.log('\n[FFmpeg] filter_complex:\n', filterStr, '\n');
 
         // ─── Output options ──────────────────────────────────────────────────────────
+        // Preset: ultrafast for batch/POC (max speed, larger file)
+        //         slow/medium for production-quality output
+        const preset = process.env.FFMPEG_PRESET ?? 'ultrafast';
+        const threads = process.env.FFMPEG_THREADS ?? String(os.cpus().length);
+
         const outputOpts: string[] = [
             '-map', '[out]',
             '-c:v', 'libx264',
-            '-preset', 'fast',
+            '-preset', preset,
             '-crf', '23',
+            '-threads', threads,
             '-movflags', '+faststart',
             '-t', String(totalDurationSec),
             '-y',

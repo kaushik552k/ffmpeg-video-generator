@@ -268,18 +268,23 @@ export async function renderOverlayLayers(params: {
     items: OverlayItem[];
     tempDir: string;
     cacheDir: string;
+    /** Max concurrent Puppeteer pages. Default: 4 */
+    concurrency?: number;
 }): Promise<RenderedOverlayLayer[]> {
-    const { items, tempDir, cacheDir } = params;
+    const { items, tempDir, cacheDir, concurrency = 4 } = params;
     ensureDir(tempDir);
     ensureDir(cacheDir);
 
-    const layers: RenderedOverlayLayer[] = [];
+    // Pre-warm browser before parallel work
+    await getBrowser();
 
-    for (const item of items) {
+    /**
+     * Render a single overlay item to PNG (cache-aware).
+     */
+    async function renderItem(item: OverlayItem): Promise<RenderedOverlayLayer> {
         const d = item.details;
-
-        // Build the HTML for this item type
         let html: string;
+
         switch (item.type) {
             case 'text': {
                 const td = d as TextDetails;
@@ -288,15 +293,13 @@ export async function renderOverlayLayers(params: {
                 break;
             }
             case 'list': {
-                const ld = d as ListDetails;
-                // Support dynamic fields in list items
+                const ld = { ...(d as ListDetails) };
                 ld.items = ld.items.map((i) => replaceDynamicText(i, item.dynamicFields ?? {}));
                 html = buildListHTML(ld);
                 break;
             }
             case 'table': {
-                const tbd = d as TableDetails;
-                // Support dynamic fields in table cells
+                const tbd = { ...(d as TableDetails) };
                 tbd.headers = tbd.headers.map((h) => replaceDynamicText(h, item.dynamicFields ?? {}));
                 tbd.rows = tbd.rows.map(
                     (row) => row.map((cell) => replaceDynamicText(cell, item.dynamicFields ?? {}))
@@ -309,14 +312,12 @@ export async function renderOverlayLayers(params: {
                 break;
             }
             default:
-                console.warn(`[LayerRenderer] Unknown type: ${item.type}, skipping`);
-                continue;
+                throw new Error(`[LayerRenderer] Unknown type: ${(item as any).type}`);
         }
 
-        // Cache key = hash of final HTML
         const cacheKey = simpleHash(html);
         const cachedPath = path.join(cacheDir, `${cacheKey}.png`);
-        const pngPath = path.join(tempDir, `${item.type}_${item.id}_${Date.now()}.png`);
+        const pngPath = path.join(tempDir, `${item.type}_${item.id}.png`);
 
         if (fs.existsSync(cachedPath)) {
             fs.copyFileSync(cachedPath, pngPath);
@@ -327,7 +328,7 @@ export async function renderOverlayLayers(params: {
             fs.copyFileSync(pngPath, cachedPath);
         }
 
-        layers.push({
+        return {
             pngPath,
             left: parsePx(d.left),
             top: parsePx(d.top),
@@ -337,10 +338,19 @@ export async function renderOverlayLayers(params: {
             toSec: item.display.to / 1000,
             opacity: d.opacity / 100,
             animation: item.animation,
-        });
+        };
     }
 
-    return layers;
+    // ── Concurrency-limited parallel rendering ────────────────────────────────
+    // Process in chunks of `concurrency` to avoid exhausting browser memory
+    const results: RenderedOverlayLayer[] = new Array(items.length);
+    for (let i = 0; i < items.length; i += concurrency) {
+        const chunk = items.slice(i, i + concurrency);
+        const chunkResults = await Promise.all(chunk.map(renderItem));
+        chunkResults.forEach((r, j) => { results[i + j] = r; });
+    }
+
+    return results;
 }
 
 // ─── Backward-compatible export ─────────────────────────────────────────────

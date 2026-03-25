@@ -1,5 +1,6 @@
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
 import {
     Composition, TextTrackItem, VideoTrackItem,
     ListTrackItem, TableTrackItem, ImageTrackItem,
@@ -7,17 +8,22 @@ import {
 import { renderOverlayLayers, OverlayItem } from './textRenderer';
 import { compositeVideo } from './videoCompositor';
 import { ensureDir } from '../shared/utils';
+import { downloadFile, isRemoteUrl } from '../shared/downloader';
 
 const OUTPUT_DIR = process.env.OUTPUT_DIR ?? './output';
-const TEMP_DIR = process.env.TEMP_DIR ?? './tmp';
-const CACHE_DIR = path.join(TEMP_DIR, 'png_cache');
+const TEMP_DIR   = process.env.TEMP_DIR   ?? './tmp';
+const CACHE_DIR  = path.join(TEMP_DIR, 'png_cache');
+// Parallel Puppeteer page concurrency. Tune per server RAM.
+const PNG_CONCURRENCY = Number(process.env.PNG_CONCURRENCY ?? os.cpus().length);
 
 /**
- * Full render pipeline:
- * 1. Parse composition — separate overlay items (text/list/table/image) and video items
- * 2. Render overlay items to transparent PNGs via Puppeteer
- * 3. Composite everything with FFmpeg
- * 4. Return the output MP4 path
+ * Full render pipeline — optimized for throughput:
+ *   1. Separate overlay items and video items
+ *   2. Launch CONCURRENTLY:
+ *        a) Download remote video(s) to local temp files
+ *        b) Render all overlay PNGs via Puppeteer (parallel)
+ *   3. FFmpeg composite + encode (ultrafast preset, threaded)
+ *   4. Return the output MP4 path
  */
 export async function renderComposition(params: {
     jobId: string;
@@ -32,8 +38,11 @@ export async function renderComposition(params: {
     ensureDir(OUTPUT_DIR);
     ensureDir(CACHE_DIR);
 
+    // Track local paths for downloaded videos so we can clean up
+    const downloadedFiles: string[] = [];
+
     try {
-        // ── Step 1: Separate items by type in track order (bottom → top) ──────────
+        // ── Step 1: Separate items by type ────────────────────────────────────
         const overlayItems: OverlayItem[] = [];
         const videoItems: VideoTrackItem[] = [];
 
@@ -45,38 +54,31 @@ export async function renderComposition(params: {
                 switch (item.type) {
                     case 'text':
                         overlayItems.push({
-                            id: item.id,
-                            type: 'text',
+                            id: item.id, type: 'text',
                             details: (item as TextTrackItem).details,
-                            display: item.display,
-                            dynamicFields,
+                            display: item.display, dynamicFields,
                             animation: (item as TextTrackItem).animation,
                         });
                         break;
                     case 'list':
                         overlayItems.push({
-                            id: item.id,
-                            type: 'list',
+                            id: item.id, type: 'list',
                             details: (item as ListTrackItem).details,
-                            display: item.display,
-                            dynamicFields,
+                            display: item.display, dynamicFields,
                             animation: (item as ListTrackItem).animation,
                         });
                         break;
                     case 'table':
                         overlayItems.push({
-                            id: item.id,
-                            type: 'table',
+                            id: item.id, type: 'table',
                             details: (item as TableTrackItem).details,
-                            display: item.display,
-                            dynamicFields,
+                            display: item.display, dynamicFields,
                             animation: (item as TableTrackItem).animation,
                         });
                         break;
                     case 'image':
                         overlayItems.push({
-                            id: item.id,
-                            type: 'image',
+                            id: item.id, type: 'image',
                             details: (item as ImageTrackItem).details,
                             display: item.display,
                             animation: (item as ImageTrackItem).animation,
@@ -89,46 +91,62 @@ export async function renderComposition(params: {
             }
         }
 
-        const counts = {
-            video: videoItems.length,
-            text: overlayItems.filter((o) => o.type === 'text').length,
-            list: overlayItems.filter((o) => o.type === 'list').length,
-            table: overlayItems.filter((o) => o.type === 'table').length,
-            image: overlayItems.filter((o) => o.type === 'image').length,
-        };
-        console.log(`[Pipeline] Job ${jobId}:`, counts);
+        console.log(`[Pipeline] Job ${jobId}: video=${videoItems.length} overlay=${overlayItems.length} cpus=${PNG_CONCURRENCY}`);
+        onProgress?.(5);
 
-        onProgress?.(10);
+        // ── Step 2: PARALLEL — download videos + render PNGs ─────────────────
+        //   These two phases are fully independent — run them simultaneously.
 
-        // ── Step 2: Render overlay items to PNGs ──────────────────────────────────
-        console.log('[Pipeline] Rendering overlay layers...');
-        const overlayLayers = await renderOverlayLayers({
+        // 2a) Download remote video sources → local temp files
+        const videoDownloadPromise = Promise.all(
+            videoItems.map(async (vItem, i) => {
+                const src = vItem.details.src;
+                if (!src || !isRemoteUrl(src)) return; // already local
+                const ext = path.extname(new URL(src).pathname) || '.mp4';
+                const localPath = path.join(jobTempDir, `video_${i}${ext}`);
+                console.log(`[Pipeline] Downloading video ${i}: ${src.slice(0, 60)}...`);
+                const t = Date.now();
+                await downloadFile(src, localPath);
+                console.log(`[Pipeline] Video ${i} downloaded in ${((Date.now() - t) / 1000).toFixed(1)}s → ${localPath}`);
+                downloadedFiles.push(localPath);
+                // Mutate details.src to point to local file
+                vItem.details.src = localPath;
+            })
+        );
+
+        // 2b) Render overlay PNGs (parallel Puppeteer pages)
+        console.log('[Pipeline] Rendering overlay layers (parallel)...');
+        const t0 = Date.now();
+        const overlayPromise = renderOverlayLayers({
             items: overlayItems,
             tempDir: jobTempDir,
             cacheDir: CACHE_DIR,
+            concurrency: PNG_CONCURRENCY,
         });
 
-        onProgress?.(40);
+        // Wait for BOTH to finish
+        const [, overlayLayers] = await Promise.all([videoDownloadPromise, overlayPromise]);
+        console.log(`[Pipeline] PNGs rendered in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
+        onProgress?.(50);
 
-        // ── Step 3: Composite with FFmpeg ─────────────────────────────────────────
+        // ── Step 3: FFmpeg composite ──────────────────────────────────────────
         const outputPath = path.join(OUTPUT_DIR, `${jobId}.mp4`);
-
         console.log('[Pipeline] Starting FFmpeg composite...');
+        const t1 = Date.now();
         await compositeVideo({
             composition,
             textLayers: overlayLayers,
             videoItems,
             outputPath,
-            onProgress: (pct) => onProgress?.(40 + Math.round(pct * 0.55)),
+            onProgress: (pct) => onProgress?.(50 + Math.round(pct * 0.48)),
         });
+        console.log(`[Pipeline] FFmpeg done in ${((Date.now() - t1) / 1000).toFixed(1)}s`);
 
         onProgress?.(100);
         return outputPath;
+
     } finally {
-        try {
-            fs.rmSync(jobTempDir, { recursive: true, force: true });
-        } catch {
-            // Non-critical
-        }
+        // Clean up job temp dir
+        try { fs.rmSync(jobTempDir, { recursive: true, force: true }); } catch {}
     }
 }

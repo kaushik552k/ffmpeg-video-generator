@@ -118,18 +118,54 @@ See [COMPARISON_FFmpeg_vs_Remotion.md](./COMPARISON_FFmpeg_vs_Remotion.md) for f
 
 ---
 
+## What Has Been Implemented (Continued)
+
+### ✅ Phase 5: Performance Optimizations (March 25)
+
+| File | Purpose | Status |
+|---|---|---|
+| `src/shared/downloader.ts` | Downloads remote videos to local disk *before* FFmpeg runs. FFmpeg streaming remote S3 URLs over HTTPS was the #1 bottleneck. | ✅ Done |
+| `src/renderer/renderPipeline.ts` | Rewritten to run video downloads and Puppeteer PNG renders concurrently (`Promise.all`). PNG renders are now multi-threaded. | ✅ Done |
+| `src/renderer/videoCompositor.ts` | Removed `format=rgba` on base canvas/video which was destroying memory bandwidth. Switched to configurable `ultrafast` preset with core-count threading. | ✅ Done |
+
+**Benchmarking Results (30s Video, 5 Animated Layers + S3 Video):**
+- **Unoptimized Baseline:** ~148.6 seconds
+- **Optimized (Local Download + Concurrent PNGs):** ~62.1 seconds
+  - *Download + PNG Phase:* ~13s (down from ~120s due to parallelization)
+  - *FFmpeg Encode:* ~49s (encoding 30s video with 5 animated active overlays)
+- **Speedup:** **~2.4x faster** wall-clock time.
+
+### ✅ Phase 6: Benchmarking (March 25)
+
+| Script | Purpose | Status |
+|---|---|---|
+| `src/test/testBenchmark10.ts` | 10-text-layer stress test; pass `--animated` flag to enable all animation types | ✅ Done |
+
+**10-Layer Stress Test Results (30s video, 10 concurrent text overlays):**
+
+| Test | Time | File Size |
+|---|---|---|
+| 10 Layers — **Static** (no animation) | **36.1 seconds** | 5.0 MB |
+| 10 Layers — **Animated** (fadeIn/Out + slideIn/Out) | **58.3 seconds** | 5.5 MB |
+
+*The 22-second overhead is FFmpeg evaluating cubic-easing `geq` math expressions on 10 animated layers over 30 seconds. This is fundamentally more efficient than Remotion's approach of running React + DOM updates 900 times per video.*
+
+---
+
 ## What Is NOT Yet Implemented
+
 
 ### 🔲 Job Queue (BullMQ + Redis)
 - Currently POC uses in-memory job store and processes renders inline
 - For production: add BullMQ queue, Redis connection, separate worker process
 - Files planned: `src/worker/queue.ts`, `src/worker/renderWorker.ts`
 
-### 🔲 Overlay Animations
-- Currently overlays are static PNGs that appear/disappear at `display.from/to`
-- Planned: FFmpeg-native animations (fade in/out, slide, zoom) via filter expressions
-- No Puppeteer per-frame rendering needed for these
-- JSON schema would add: `"animation": { "in": { "type": "fadeIn", "duration": 500 } }`
+
+### ✅ Overlay Animations — COMPLETED (March 25)
+- **What was planned**: FFmpeg-native animations via per-frame filter expressions
+- **What was built**: Exactly this — see Phase 4 above. No Puppeteer per-frame rendering.
+- **How it works**: Puppeteer renders each layer **once** as a static transparent PNG. FFmpeg then applies per-frame math expressions during the encoding pass to simulate CSS animations.
+- **JSON schema added**: `"animation": { "in": { "type": "fadeIn", "duration": 500 }, "out": { "type": "slideOutLeft", "duration": 300 } }`
 
 ### 🔲 Docker & Deployment
 - `Dockerfile` and `docker-compose.yml` not yet created
@@ -152,17 +188,20 @@ See [COMPARISON_FFmpeg_vs_Remotion.md](./COMPARISON_FFmpeg_vs_Remotion.md) for f
 mp4-video-generator/
 ├── src/
 │   ├── renderer/
-│   │   ├── textRenderer.ts      ← Puppeteer: text/list/table/image → PNG
-│   │   ├── videoCompositor.ts   ← FFmpeg: filtergraph + encode
-│   │   └── renderPipeline.ts    ← Orchestrator
+│   │   ├── textRenderer.ts      ← Puppeteer: text/list/table/image → PNG (parallel)
+│   │   ├── videoCompositor.ts   ← FFmpeg: filtergraph + encode (ultrafast, threaded)
+│   │   ├── animationBuilder.ts  ← FFmpeg animation math expressions (NEW)
+│   │   └── renderPipeline.ts    ← Orchestrator: download + render concurrently
 │   ├── server/
 │   │   ├── app.ts               ← Express routes
 │   │   └── server.ts            ← Entry point
 │   ├── shared/
 │   │   ├── types.ts             ← Zod schemas + TS types
-│   │   └── utils.ts             ← Helpers
+│   │   ├── utils.ts             ← Helpers
+│   │   └── downloader.ts        ← Remote asset pre-download (NEW)
 │   └── test/
-│       └── testRender.ts        ← Full demo test (all 5 layer types)
+│       ├── testRender.ts        ← Full demo test (all 5 layer types + animations)
+│       └── testBenchmark10.ts   ← 10-layer stress test (NEW, --animated flag)
 ├── sample-input.json
 ├── COMPARISON_FFmpeg_vs_Remotion.md
 ├── WORK_LOG.md                  ← This file
