@@ -61,6 +61,39 @@ See [COMPARISON_FFmpeg_vs_Remotion.md](./COMPARISON_FFmpeg_vs_Remotion.md) for f
 | `src/renderer/videoCompositor.ts` | FFmpeg complex filtergraph builder. Handles video scaling with CSS `transform-origin` center, timed overlays, audio passthrough + volume control | ✅ Done |
 | `src/renderer/renderPipeline.ts` | Orchestrator: parses JSON → separates items → renders PNGs → composites with FFmpeg | ✅ Done |
 
+### ✅ Phase 4: Layer Animations (March 25)
+
+| File | Purpose | Status |
+|---|---|---|
+| `src/renderer/animationBuilder.ts` | Generates per-frame FFmpeg expression strings for x/y/alpha animations. Uses `t` for position (overlay variable) and `T` for alpha (geq variable). Cubic easing built-in. | ✅ Done |
+
+**Supported animation types:**
+
+| Type | Direction | Effect |
+|---|---|---|
+| `fadeIn` / `fadeOut` | in/out | Opacity from 0→1 / 1→0 via `geq` alpha filter |
+| `slideInLeft` / `slideOutLeft` | in/out | Slides from/to off-screen left |
+| `slideInRight` / `slideOutRight` | in/out | Slides from/to off-screen right |
+| `slideInTop` / `slideOutTop` | in/out | Slides from/to off-screen top |
+| `slideInBottom` / `slideOutBottom` | in/out | Slides from/to off-screen bottom |
+| `zoomIn` / `zoomOut` | in/out | Fade effect (alpha-based; true zoom requires zoompan future work) |
+
+**JSON usage — add `animation` field to any track item:**
+```jsonc
+"my_item": {
+  "type": "text",
+  "display": { "from": 0, "to": 5000 },
+  "animation": {
+    "in":  { "type": "fadeIn",     "duration": 800 },   // ms
+    "out": { "type": "slideOutLeft", "duration": 400 }
+  },
+  "details": { ... }
+}
+```
+
+**Verified render:** 1,217 KB animated MP4 — heading fadeIn/Out, list slideInLeft/Out, table slideInBottom/OutTop, logo zoomIn/Out, subtitle slideInRight/fadeOut.
+
+
 ### ✅ Phase 2: API Server (March 20)
 
 | File | Purpose | Status |

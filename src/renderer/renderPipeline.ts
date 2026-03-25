@@ -50,6 +50,7 @@ export async function renderComposition(params: {
                             details: (item as TextTrackItem).details,
                             display: item.display,
                             dynamicFields,
+                            animation: (item as TextTrackItem).animation,
                         });
                         break;
                     case 'list':
@@ -59,6 +60,7 @@ export async function renderComposition(params: {
                             details: (item as ListTrackItem).details,
                             display: item.display,
                             dynamicFields,
+                            animation: (item as ListTrackItem).animation,
                         });
                         break;
                     case 'table':
@@ -68,6 +70,7 @@ export async function renderComposition(params: {
                             details: (item as TableTrackItem).details,
                             display: item.display,
                             dynamicFields,
+                            animation: (item as TableTrackItem).animation,
                         });
                         break;
                     case 'image':
@@ -76,6 +79,7 @@ export async function renderComposition(params: {
                             type: 'image',
                             details: (item as ImageTrackItem).details,
                             display: item.display,
+                            animation: (item as ImageTrackItem).animation,
                         });
                         break;
                     case 'video':

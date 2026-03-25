@@ -1,5 +1,31 @@
 import { z } from 'zod';
 
+// ─── Animation ─────────────────────────────────────────────────────────────────
+/**
+ * Entrance/exit animation for a single direction (in or out).
+ * All durations are in milliseconds.
+ */
+export const AnimationConfigSchema = z.object({
+    /**
+     * Animation type:
+     * IN:  fadeIn | slideInLeft | slideInRight | slideInTop | slideInBottom | zoomIn
+     * OUT: fadeOut | slideOutLeft | slideOutRight | slideOutTop | slideOutBottom | zoomOut
+     */
+    type: z.enum([
+        'fadeIn', 'slideInLeft', 'slideInRight', 'slideInTop', 'slideInBottom', 'zoomIn',
+        'fadeOut', 'slideOutLeft', 'slideOutRight', 'slideOutTop', 'slideOutBottom', 'zoomOut',
+    ]),
+    /** Duration in milliseconds (e.g. 500 = 0.5s) */
+    duration: z.number().min(0),
+});
+
+export const LayerAnimationSchema = z.object({
+    /** Entrance animation (runs from display.from → display.from + duration) */
+    in: AnimationConfigSchema.optional(),
+    /** Exit animation (runs from display.to - duration → display.to) */
+    out: AnimationConfigSchema.optional(),
+});
+
 // ─── Box Shadow ────────────────────────────────────────────────────────────────
 export const BoxShadowSchema = z.object({
     blur: z.number(),
@@ -132,6 +158,7 @@ export const TextTrackItemSchema = z.object({
     metadata: z.record(z.unknown()).optional(),
     name: z.string().optional(),
     type: z.literal('text'),
+    animation: LayerAnimationSchema.optional(),
 });
 
 export const ListTrackItemSchema = z.object({
@@ -140,6 +167,7 @@ export const ListTrackItemSchema = z.object({
     id: z.string(),
     name: z.string().optional(),
     type: z.literal('list'),
+    animation: LayerAnimationSchema.optional(),
 });
 
 export const TableTrackItemSchema = z.object({
@@ -148,6 +176,7 @@ export const TableTrackItemSchema = z.object({
     id: z.string(),
     name: z.string().optional(),
     type: z.literal('table'),
+    animation: LayerAnimationSchema.optional(),
 });
 
 export const ImageTrackItemSchema = z.object({
@@ -156,6 +185,7 @@ export const ImageTrackItemSchema = z.object({
     id: z.string(),
     name: z.string().optional(),
     type: z.literal('image'),
+    animation: LayerAnimationSchema.optional(),
 });
 
 export const VideoTrackItemSchema = z.object({
@@ -212,6 +242,8 @@ export const RenderRequestSchema = z.object({
 
 // ─── TypeScript Types ──────────────────────────────────────────────────────────
 export type BoxShadow = z.infer<typeof BoxShadowSchema>;
+export type AnimationConfig = z.infer<typeof AnimationConfigSchema>;
+export type LayerAnimation = z.infer<typeof LayerAnimationSchema>;
 export type TextDetails = z.infer<typeof TextDetailsSchema>;
 export type ListDetails = z.infer<typeof ListDetailsSchema>;
 export type TableDetails = z.infer<typeof TableDetailsSchema>;

@@ -2,7 +2,7 @@ import puppeteer, { Browser, Page } from 'puppeteer';
 import fs from 'fs';
 import path from 'path';
 import {
-    TextDetails, ListDetails, TableDetails, ImageDetails,
+    TextDetails, ListDetails, TableDetails, ImageDetails, LayerAnimation,
 } from '../shared/types';
 import { replaceDynamicText, parsePx, simpleHash, ensureDir } from '../shared/utils';
 
@@ -45,6 +45,8 @@ export interface RenderedOverlayLayer {
     fromSec: number;
     toSec: number;
     opacity: number;
+    /** Optional animation config from the JSON track item */
+    animation?: LayerAnimation;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -258,6 +260,8 @@ export interface OverlayItem {
     details: TextDetails | ListDetails | TableDetails | ImageDetails;
     display: { from: number; to: number };
     dynamicFields?: Record<string, string>;
+    /** Optional animation from the JSON track item */
+    animation?: LayerAnimation;
 }
 
 export async function renderOverlayLayers(params: {
@@ -332,6 +336,7 @@ export async function renderOverlayLayers(params: {
             fromSec: item.display.from / 1000,
             toSec: item.display.to / 1000,
             opacity: d.opacity / 100,
+            animation: item.animation,
         });
     }
 

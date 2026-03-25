@@ -39,6 +39,10 @@ const sampleComposition: Composition = {
             type: "text",
             display: { from: 0, to: 8000 },
             id: "txt_heading",
+            animation: {
+                in:  { type: "fadeIn",     duration: 800 },
+                out: { type: "fadeOut",    duration: 600 },
+            },
             details: {
                 text: "{{title}}",
                 left: "160px",
@@ -60,6 +64,10 @@ const sampleComposition: Composition = {
             type: "list",
             display: { from: 2000, to: 10000 },
             id: "list_features",
+            animation: {
+                in:  { type: "slideInLeft",   duration: 600 },
+                out: { type: "slideOutLeft",  duration: 400 },
+            },
             details: {
                 left: "160px",
                 top: "220px",
@@ -88,6 +96,10 @@ const sampleComposition: Composition = {
             type: "table",
             display: { from: 10000, to: 20000 },
             id: "table_stats",
+            animation: {
+                in:  { type: "slideInBottom",  duration: 700 },
+                out: { type: "slideOutTop",    duration: 500 },
+            },
             details: {
                 left: "160px",
                 top: "200px",
@@ -120,6 +132,10 @@ const sampleComposition: Composition = {
             type: "image",
             display: { from: 0, to: 30000 },
             id: "img_logo",
+            animation: {
+                in:  { type: "zoomIn",   duration: 1000 },
+                out: { type: "zoomOut",  duration: 800 },
+            },
             details: {
                 src: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4f/SVG_Logo.svg/200px-SVG_Logo.svg.png",
                 left: "1650px",
@@ -139,6 +155,10 @@ const sampleComposition: Composition = {
             type: "text",
             display: { from: 20000, to: 30000 },
             id: "txt_subtitle",
+            animation: {
+                in:  { type: "slideInRight",  duration: 600 },
+                out: { type: "fadeOut",       duration: 1000 },
+            },
             details: {
                 text: "{{subtitle}}",
                 left: "160px",

@@ -4,6 +4,7 @@ import path from 'path';
 import { Composition, VideoTrackItem } from '../shared/types';
 import { RenderedTextLayer } from './textRenderer';
 import { msToSeconds, parsePx, parseTransform, ensureDir } from '../shared/utils';
+import { buildAnimationExpressions } from './animationBuilder';
 
 // Point fluent-ffmpeg at the pre-installed binary
 ffmpeg.setFfmpegPath(ffmpegInstaller.path);
@@ -112,17 +113,34 @@ export async function compositeVideo(opts: CompositeOptions): Promise<void> {
             currentOut = afterLabel;
         });
 
-        // 3) Overlay text PNGs (time-gated)
+        // 3) Overlay PNG layers (time-gated, with optional animations)
         textLayers.forEach((layer, i) => {
             const textInputIdx = textInputStart + i;
             const { left, top, fromSec, toSec } = layer;
+            const layerLabel = `t${i}`;
             const afterLabel = `after_t${i}`;
 
+            const { xExpr, yExpr, extraFilters, overlayInputLabel } = buildAnimationExpressions({
+                animation: layer.animation,
+                x: left,
+                y: top,
+                w: layer.width,
+                h: layer.height,
+                fromSec,
+                toSec,
+                layerLabel,
+                inputLabel: `[${textInputIdx}:v]`,
+            });
+
+            // Push any extra filters (e.g. geq alpha chain) first
+            filters.push(...extraFilters);
+
             filters.push(
-                `[${currentOut}][${textInputIdx}:v]overlay=x=${Math.round(left)}:y=${Math.round(top)}:enable='between(t,${fromSec},${toSec})'[${afterLabel}]`
+                `[${currentOut}]${overlayInputLabel}overlay=x='${xExpr}':y='${yExpr}':enable='between(t,${fromSec},${toSec})'[${afterLabel}]`
             );
             currentOut = afterLabel;
         });
+
 
         // 4) Strip alpha channel (required for H.264)
         filters.push(`[${currentOut}]format=yuv420p[out]`);
