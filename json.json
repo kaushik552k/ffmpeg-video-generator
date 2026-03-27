@@ -1,0 +1,242 @@
+{
+    "composition": {
+        "id": "postman_demo",
+        "fps": 30,
+        "size": {
+            "width": 1920,
+            "height": 1080
+        },
+        "tracks": [
+            {
+                "id": "track_video",
+                "items": [
+                    "vid_bg"
+                ],
+                "type": "video"
+            },
+            {
+                "id": "track_text",
+                "items": [
+                    "txt_heading",
+                    "txt_subtitle",
+                    "lst_points",
+                    "tbl_stats",
+                    "img_logo"
+                ],
+                "type": "text"
+            }
+        ],
+        "trackItemsMap": {
+            "vid_bg": {
+                "type": "video",
+                "id": "vid_bg",
+                "display": {
+                    "from": 0,
+                    "to": 30000
+                },
+                "duration": 30000,
+                "playbackRate": 1,
+                "trim": {
+                    "from": 0,
+                    "to": 30000
+                },
+                "details": {
+                    "src": "https://uat-visuals-pub.s3.ap-south-1.amazonaws.com/media_templates/121826074e47a6048f6574e12edd7560.mp4",
+                    "left": "640px",
+                    "top": "360px",
+                    "width": 640,
+                    "height": 360,
+                    "transform": "scale(3)",
+                    "opacity": 100,
+                    "volume": 80
+                }
+            },
+            "txt_heading": {
+                "type": "text",
+                "id": "txt_heading",
+                "display": {
+                    "from": 0,
+                    "to": 30000
+                },
+                "animation": {
+                    "in": {
+                        "type": "fadeIn",
+                        "duration": 1200
+                    },
+                    "out": {
+                        "type": "fadeOut",
+                        "duration": 800
+                    }
+                },
+                "details": {
+                    "text": "{{title}}",
+                    "left": "160px",
+                    "top": "80px",
+                    "width": 900,
+                    "height": 120,
+                    "fontFamily": "Roboto-Bold",
+                    "fontUrl": "https://fonts.gstatic.com/s/roboto/v29/KFOlCnqEu92Fr1MmWUlvAx05IsDqlA.ttf",
+                    "fontSize": 72,
+                    "color": "#ffffff",
+                    "textAlign": "left",
+                    "opacity": 100,
+                    "backgroundColor": "transparent"
+                }
+            },
+            "txt_subtitle": {
+                "type": "text",
+                "id": "txt_subtitle",
+                "display": {
+                    "from": 0,
+                    "to": 30000
+                },
+                "animation": {
+                    "in": {
+                        "type": "slideInRight",
+                        "duration": 1000
+                    },
+                    "out": {
+                        "type": "slideOutRight",
+                        "duration": 600
+                    }
+                },
+                "details": {
+                    "text": "{{subtitle}}",
+                    "left": "160px",
+                    "top": "210px",
+                    "width": 800,
+                    "height": 60,
+                    "fontFamily": "Roboto-Bold",
+                    "fontUrl": "https://fonts.gstatic.com/s/roboto/v29/KFOlCnqEu92Fr1MmWUlvAx05IsDqlA.ttf",
+                    "fontSize": 32,
+                    "color": "#cccccc",
+                    "textAlign": "left",
+                    "opacity": 100,
+                    "backgroundColor": "transparent"
+                }
+            },
+            "lst_points": {
+                "type": "list",
+                "id": "lst_points",
+                "display": {
+                    "from": 3000,
+                    "to": 30000
+                },
+                "animation": {
+                    "in": {
+                        "type": "slideInLeft",
+                        "duration": 900
+                    },
+                    "out": {
+                        "type": "slideOutLeft",
+                        "duration": 600
+                    }
+                },
+                "details": {
+                    "left": "160px",
+                    "top": "300px",
+                    "width": 700,
+                    "height": 280,
+                    "listStyle": "disc",
+                    "items": [
+                        "{{point1}}",
+                        "{{point2}}",
+                        "{{point3}}"
+                    ],
+                    "fontSize": 34,
+                    "color": "#ffffff",
+                    "opacity": 100,
+                    "backgroundColor": "rgba(0,0,0,0.4)",
+                    "borderRadius": 12
+                }
+            },
+            "tbl_stats": {
+                "type": "table",
+                "id": "tbl_stats",
+                "display": {
+                    "from": 8000,
+                    "to": 30000
+                },
+                "animation": {
+                    "in": {
+                        "type": "slideInBottom",
+                        "duration": 1000
+                    },
+                    "out": {
+                        "type": "fadeOut",
+                        "duration": 800
+                    }
+                },
+                "details": {
+                    "left": "160px",
+                    "top": "620px",
+                    "width": 800,
+                    "height": 240,
+                    "headers": [
+                        "Metric",
+                        "Q2",
+                        "Q3"
+                    ],
+                    "rows": [
+                        [
+                            "Revenue",
+                            "$10M",
+                            "{{q3Revenue}}"
+                        ],
+                        [
+                            "Users",
+                            "700K",
+                            "{{q3Users}}"
+                        ],
+                        [
+                            "Markets",
+                            "5",
+                            "8"
+                        ]
+                    ],
+                    "fontSize": 28,
+                    "color": "#ffffff",
+                    "opacity": 100,
+                    "backgroundColor": "rgba(0,0,0,0.5)",
+                    "borderRadius": 8
+                }
+            },
+            "img_logo": {
+                "type": "image",
+                "id": "img_logo",
+                "display": {
+                    "from": 0,
+                    "to": 30000
+                },
+                "animation": {
+                    "in": {
+                        "type": "zoomIn",
+                        "duration": 1500
+                    },
+                    "out": {
+                        "type": "zoomOut",
+                        "duration": 800
+                    }
+                },
+                "details": {
+                    "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Google_2015_logo.svg/800px-Google_2015_logo.svg.png",
+                    "left": "1650px",
+                    "top": "40px",
+                    "width": 220,
+                    "height": 80,
+                    "opacity": 90,
+                    "borderRadius": 0
+                }
+            }
+        }
+    },
+    "dynamicFields": {
+        "title": "Q3 Business Review",
+        "subtitle": "Presented by Kaushik · March 2026",
+        "point1": "Revenue grew 40% YoY",
+        "point2": "MAU crossed 1 Million",
+        "point3": "Launched in 3 new markets",
+        "q3Revenue": "$14M",
+        "q3Users": "1M"
+    }
+}
