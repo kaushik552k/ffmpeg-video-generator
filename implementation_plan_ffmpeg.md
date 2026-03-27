@@ -180,3 +180,28 @@ curl http://localhost:3000/api/render/{jobId}/status
 - Text overlays appear at correct positions and timings
 - Dynamic text replaced correctly
 - Audio from video source preserved
+
+
+
+
+           ┌──────────────────────────────────────────────┐
+           │               Redis (Job Store)               │
+           └──────────────────────────────────────────────┘
+                          ↑ enqueue           ↓ pull job
+┌────────────┐    ┌──────────────┐    ┌──────────────────┐
+│  Client   │───▶│  Express API  │    │   Worker × N     │
+│           │◀───│  (just queues)│    │ (renderPipeline) │
+└────────────┘    └──────────────┘    └──────────────────┘
+                                              ↓
+                                    ┌──────────────────┐
+                                    │  Output MP4       │
+                                    │  (local / S3)     │
+                                    └──────────────────┘
+
+Throughput math for 3M videos:
+
+Each render ≈ 36–60 seconds
+1 worker → ~1,440 videos/day
+10 workers → ~14,400 videos/day
+100 workers (Kubernetes) → ~144,000 videos/day
+21 days to render 3M videos at 100 workers
