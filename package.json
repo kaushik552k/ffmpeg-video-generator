@@ -8,7 +8,9 @@
     "build": "tsc",
     "start": "node dist/server/server.js",
     "worker": "tsx src/worker/renderWorker.ts",
-    "test:render": "tsx src/test/testRender.ts"
+    "test:render": "tsx src/test/testRender.ts",
+    "test:geq": "tsx src/test/demo_geq_old.ts",
+    "test:native": "tsx src/test/demo_fade_new.ts"
   },
   "dependencies": {
     "@ffmpeg-installer/ffmpeg": "^1.1.0",

@@ -6,6 +6,7 @@ import { Composition, VideoTrackItem } from '../shared/types';
 import { RenderedTextLayer } from './textRenderer';
 import { msToSeconds, parsePx, parseTransform, ensureDir } from '../shared/utils';
 import { buildAnimationExpressions } from './animationBuilder';
+type BuildAnimFn = typeof buildAnimationExpressions;
 
 // Point fluent-ffmpeg at the pre-installed binary
 ffmpeg.setFfmpegPath(ffmpegInstaller.path);
@@ -17,6 +18,8 @@ export interface CompositeOptions {
     videoItems: VideoTrackItem[];
     outputPath: string;
     onProgress?: (percent: number) => void;
+    /** Override the animation expression builder. Defaults to native fade (fast). */
+    buildAnimFn?: BuildAnimFn;
 }
 
 /**
@@ -32,7 +35,8 @@ export interface CompositeOptions {
  *   ... → [vN] → format=yuv420p → [out]
  */
 export async function compositeVideo(opts: CompositeOptions): Promise<void> {
-    const { composition, textLayers, videoItems, outputPath, onProgress } = opts;
+    const { composition, textLayers, videoItems, outputPath, onProgress,
+            buildAnimFn = buildAnimationExpressions } = opts;
     const { width, height } = composition.size;
     const fps = composition.fps;
 
@@ -121,7 +125,7 @@ export async function compositeVideo(opts: CompositeOptions): Promise<void> {
             const layerLabel = `t${i}`;
             const afterLabel = `after_t${i}`;
 
-            const { xExpr, yExpr, extraFilters, overlayInputLabel } = buildAnimationExpressions({
+            const { xExpr, yExpr, extraFilters, overlayInputLabel } = buildAnimFn({
                 animation: layer.animation,
                 x: left,
                 y: top,

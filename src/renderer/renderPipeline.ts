@@ -6,7 +6,7 @@ import {
     ListTrackItem, TableTrackItem, ImageTrackItem,
 } from '../shared/types';
 import { renderOverlayLayers, OverlayItem } from './textRenderer';
-import { compositeVideo } from './videoCompositor';
+import { compositeVideo, CompositeOptions } from './videoCompositor';
 import { ensureDir } from '../shared/utils';
 import { getOrDownloadVideo, isRemoteUrl } from '../shared/downloader';
 
@@ -32,8 +32,10 @@ export async function renderComposition(params: {
     composition: Composition;
     dynamicFields?: Record<string, string>;
     onProgress?: (percent: number) => void;
+    /** Inject a custom animation builder (e.g. legacy geq for benchmarks). */
+    buildAnimFn?: CompositeOptions['buildAnimFn'];
 }): Promise<string> {
-    const { jobId, composition, dynamicFields = {}, onProgress } = params;
+    const { jobId, composition, dynamicFields = {}, onProgress, buildAnimFn } = params;
 
     const jobTempDir = path.join(TEMP_DIR, jobId);
     ensureDir(jobTempDir);
@@ -133,6 +135,7 @@ export async function renderComposition(params: {
             videoItems,
             outputPath,
             onProgress: (pct) => onProgress?.(50 + Math.round(pct * 0.48)),
+            buildAnimFn,
         });
         console.log(`[Pipeline] FFmpeg done in ${((Date.now() - t1) / 1000).toFixed(1)}s`);
 
