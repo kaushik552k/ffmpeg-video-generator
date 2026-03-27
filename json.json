@@ -143,6 +143,8 @@
                         "{{point2}}",
                         "{{point3}}"
                     ],
+                    "fontFamily": "Roboto-Bold",
+                    "fontUrl": "https://fonts.gstatic.com/s/roboto/v29/KFOlCnqEu92Fr1MmWUlvAx05IsDqlA.ttf",
                     "fontSize": 34,
                     "color": "#ffffff",
                     "opacity": 100,
@@ -178,22 +180,12 @@
                         "Q3"
                     ],
                     "rows": [
-                        [
-                            "Revenue",
-                            "$10M",
-                            "{{q3Revenue}}"
-                        ],
-                        [
-                            "Users",
-                            "700K",
-                            "{{q3Users}}"
-                        ],
-                        [
-                            "Markets",
-                            "5",
-                            "8"
-                        ]
+                        ["Revenue", "$10M", "{{q3Revenue}}"],
+                        ["Users", "700K", "{{q3Users}}"],
+                        ["Markets", "5", "8"]
                     ],
+                    "fontFamily": "Roboto-Bold",
+                    "fontUrl": "https://fonts.gstatic.com/s/roboto/v29/KFOlCnqEu92Fr1MmWUlvAx05IsDqlA.ttf",
                     "fontSize": 28,
                     "color": "#ffffff",
                     "opacity": 100,
