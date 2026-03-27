@@ -8,13 +8,15 @@ import {
 import { renderOverlayLayers, OverlayItem } from './textRenderer';
 import { compositeVideo } from './videoCompositor';
 import { ensureDir } from '../shared/utils';
-import { downloadFile, isRemoteUrl } from '../shared/downloader';
+import { getOrDownloadVideo, isRemoteUrl } from '../shared/downloader';
 
-const OUTPUT_DIR = process.env.OUTPUT_DIR ?? './output';
-const TEMP_DIR   = process.env.TEMP_DIR   ?? './tmp';
-const CACHE_DIR  = path.join(TEMP_DIR, 'png_cache');
+const OUTPUT_DIR       = process.env.OUTPUT_DIR       ?? './output';
+const TEMP_DIR         = process.env.TEMP_DIR         ?? './tmp';
+const CACHE_DIR        = path.join(TEMP_DIR, 'png_cache');
+/** Persistent cross-job video cache — never deleted automatically */
+const VIDEO_CACHE_DIR  = path.join(TEMP_DIR, 'video_cache');
 // Parallel Puppeteer page concurrency. Tune per server RAM.
-const PNG_CONCURRENCY = Number(process.env.PNG_CONCURRENCY ?? os.cpus().length);
+const PNG_CONCURRENCY  = Number(process.env.PNG_CONCURRENCY ?? os.cpus().length);
 
 /**
  * Full render pipeline — optimized for throughput:
@@ -37,9 +39,7 @@ export async function renderComposition(params: {
     ensureDir(jobTempDir);
     ensureDir(OUTPUT_DIR);
     ensureDir(CACHE_DIR);
-
-    // Track local paths for downloaded videos so we can clean up
-    const downloadedFiles: string[] = [];
+    ensureDir(VIDEO_CACHE_DIR);
 
     try {
         // ── Step 1: Separate items by type ────────────────────────────────────
@@ -97,20 +97,14 @@ export async function renderComposition(params: {
         // ── Step 2: PARALLEL — download videos + render PNGs ─────────────────
         //   These two phases are fully independent — run them simultaneously.
 
-        // 2a) Download remote video sources → local temp files
+        // 2a) Resolve remote video sources → persistent cache (download once, reuse forever)
         const videoDownloadPromise = Promise.all(
             videoItems.map(async (vItem, i) => {
                 const src = vItem.details.src;
-                if (!src || !isRemoteUrl(src)) return; // already local
-                const ext = path.extname(new URL(src).pathname) || '.mp4';
-                const localPath = path.join(jobTempDir, `video_${i}${ext}`);
-                console.log(`[Pipeline] Downloading video ${i}: ${src.slice(0, 60)}...`);
-                const t = Date.now();
-                await downloadFile(src, localPath);
-                console.log(`[Pipeline] Video ${i} downloaded in ${((Date.now() - t) / 1000).toFixed(1)}s → ${localPath}`);
-                downloadedFiles.push(localPath);
-                // Mutate details.src to point to local file
-                vItem.details.src = localPath;
+                if (!src || !isRemoteUrl(src)) return; // already a local path
+                // getOrDownloadVideo returns cached path instantly if already downloaded
+                const localPath = await getOrDownloadVideo(src, VIDEO_CACHE_DIR);
+                vItem.details.src = localPath; // point FFmpeg to local file
             })
         );
 
