@@ -3,34 +3,30 @@
  *
  * Generates FFmpeg filter_complex fragments for layer animations.
  *
- * ─── HOW IT WORKS ──────────────────────────────────────────────────────────────
- * The FFmpeg overlay filter evaluates x/y as per-frame expressions.
- * `t` = current timestamp in seconds from stream start.
+ * ─── ARCHITECTURE ─────────────────────────────────────────────────────────────
  *
- * For FADE/ZOOM animations we use the `overlay` filter's built-in `alpha`
- * blending mode — but since libx264 needs yuv420p (no alpha in final output),
- * we instead apply a global alpha modifier to the overlay PNG using
- * colorchannelmixer's `aa` parameter, which scales the alpha channel.
+ * FADE / ZOOM animations  →  FFmpeg native `fade` filter
+ *   The previous implementation used `geq` which evaluates a math expression
+ *   PER PIXEL PER FRAME: for 1920×1080 @ 30fps that is ~1.86 BILLION evals
+ *   for a 30-second video. The native `fade` filter uses SIMD CPU instructions
+ *   (SSE/AVX) to process 16–32 pixels simultaneously — orders of magnitude faster.
  *
- * colorchannelmixer=aa=<expr> is evaluated once per-frame via the `setpts` trick:
- * We actually use the `sendcmd` approach — but the SIMPLEST correct approach is:
- * apply format=rgba to the still PNG, then use `overlay` with `alpha=1` option
- * and vary transparency via `lut` filter's alpha channel.
+ *   Syntax:
+ *     fade=type=in:start_time=<sec>:duration=<sec>:alpha=1    ← entrance fade
+ *     fade=type=out:start_time=<sec>:duration=<sec>:alpha=1   ← exit fade
+ *   Two fades are chained when both in + out are fade-based.
  *
- * HOWEVER the simplest approach that actually works cross-platform in FFmpeg is:
- * Use a `geq` filter on the PNG stream: geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='alpha(X,Y)*<factor>'
- * where <factor> is a constant evaluated per-clip (not per-frame).
+ * SLIDE animations  →  overlay x/y per-frame expressions
+ *   The `overlay` filter evaluates x/y once per FRAME (not per pixel), so it
+ *   is already efficient. We keep cubic easing expressions here.
+ *   `t` = current timestamp in seconds (overlay filter variable)
  *
- * For TRUE per-frame alpha, we use the overlay filter's `x` and `y` dynamic
- * expressions for slide animations, and for fade/zoom we apply the `lut` filter
- * with `a` channel scaled by the time expression using `geq` correctly.
+ * COMBINATION  →  fade can be chained with slide:
+ *   If a layer has slideInLeft + fadeOut, we apply:
+ *   1. native fade (for the out-fade portion)
+ *   2. overlay x expression (for the in-slide portion)
  *
- * ─── CORRECT geq SYNTAX ────────────────────────────────────────────────────────
- * [in]geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='clip(alpha(X,Y)*(EXPR),0,255)'[out]
- *   where EXPR uses T (geq time variable) not t (overlay variable)
- *   geq time variable: T = current time in seconds (available in geq)
- *
- * ─── SUPPORTED ANIMATIONS ──────────────────────────────────────────────────────
+ * ─── SUPPORTED ANIMATIONS ─────────────────────────────────────────────────────
  * in:  fadeIn | slideInLeft | slideInRight | slideInTop | slideInBottom | zoomIn
  * out: fadeOut | slideOutLeft | slideOutRight | slideOutTop | slideOutBottom | zoomOut
  */
@@ -45,17 +41,14 @@ export function buildAnimationExpressions(params: {
   h: number;
   fromSec: number;
   toSec: number;
-  layerLabel: string;  // e.g. "t0"
-  inputLabel: string;  // e.g. "[2:v]"
+  layerLabel: string;   // e.g. "t0"
+  inputLabel: string;   // e.g. "[2:v]"
 }): {
   xExpr: string;
   yExpr: string;
-  /**
-   * Extra filter segments to prepend to the main filters array.
-   * Each segment is a full "label filter label" string ready to push into filters[].
-   */
+  /** Extra filter segments to insert before the overlay, in order. */
   extraFilters: string[];
-  /** The label to use as input to the overlay filter (may differ after alpha chain) */
+  /** The label to feed into the overlay filter (may change after fade chain). */
   overlayInputLabel: string;
 } {
   const { animation, x, y, w, h, fromSec, toSec, layerLabel, inputLabel } = params;
@@ -69,18 +62,16 @@ export function buildAnimationExpressions(params: {
     };
   }
 
-  const inAnim = animation.in;
+  const inAnim  = animation.in;
   const outAnim = animation.out;
-  const inDur = inAnim ? inAnim.duration / 1000 : 0;
-  const outDur = outAnim ? outAnim.duration / 1000 : 0;
+  const inDur   = inAnim  ? inAnim.duration  / 1000 : 0;
+  const outDur  = outAnim ? outAnim.duration / 1000 : 0;
 
-  // ── Easing expressions using overlay's `t` variable ────────────────────────
-  // p_in: normalized [0,1] progress through entrance (0=start, 1=done)
-  // p_out: normalized [0,1] progress through exit (0=not started, 1=done)
-  const inStart = fromSec;
+  const inStart  = fromSec;
   const outStart = toSec - outDur;
 
-  // ease-out cubic for in (fast arrive), ease-in cubic for out (fast leave)
+  // ── Per-frame easing expressions (overlay t variable) ─────────────────────
+  // Used only by slide animations (per-frame, already fast).
   const p_in_linear = inDur > 0
     ? `clip((t-${inStart.toFixed(3)})/${inDur.toFixed(3)},0,1)`
     : '1';
@@ -88,27 +79,19 @@ export function buildAnimationExpressions(params: {
     ? `clip((t-${outStart.toFixed(3)})/${outDur.toFixed(3)},0,1)`
     : '0';
 
-  // Eased: ease-out-cubic = 1-(1-p)^3, ease-in-cubic = p^3
-  const eased_in = inDur > 0
-    ? `(1-pow(1-${p_in_linear},3))`
-    : '1';
-  const eased_out = outDur > 0
-    ? `pow(${p_out_linear},3)`
-    : '0';
+  const eased_in  = inDur  > 0 ? `(1-pow(1-${p_in_linear},3))` : '1';
+  const eased_out = outDur > 0 ? `pow(${p_out_linear},3)` : '0';
 
-  // ── X / Y position expressions ──────────────────────────────────────────────
+  // ── X / Y position expressions (slide animations) ─────────────────────────
   let xExpr = String(Math.round(x));
   let yExpr = String(Math.round(y));
 
-  const inType = inAnim?.type;
+  const inType  = inAnim?.type;
   const outType = outAnim?.type;
 
-  // IN position animations
   if (inType === 'slideInLeft') {
-    // Start off-screen left, slide to x
     xExpr = `${Math.round(x)}-(${Math.round(x + w)})*(1-${eased_in})`;
   } else if (inType === 'slideInRight') {
-    // Start off-screen right, slide to x
     xExpr = `${Math.round(x)}+(1920-${Math.round(x)})*(1-${eased_in})`;
   } else if (inType === 'slideInTop') {
     yExpr = `${Math.round(y)}-(${Math.round(y + h)})*(1-${eased_in})`;
@@ -116,7 +99,6 @@ export function buildAnimationExpressions(params: {
     yExpr = `${Math.round(y)}+(1080-${Math.round(y)})*(1-${eased_in})`;
   }
 
-  // OUT position animations (additive to in)
   if (outType === 'slideOutLeft') {
     xExpr = `(${xExpr})-(${Math.round(x + w)})*${eased_out}`;
   } else if (outType === 'slideOutRight') {
@@ -127,35 +109,40 @@ export function buildAnimationExpressions(params: {
     yExpr = `(${yExpr})+(1080-${Math.round(y)})*${eased_out}`;
   }
 
-  // ── Alpha (fade/zoom) via geq filter ───────────────────────────────────────
-  const needsAlpha =
-    inType === 'fadeIn' || inType === 'zoomIn' ||
+  // ── Native fade filter (replaces per-pixel geq) ───────────────────────────
+  //
+  // FFmpeg's `fade` filter is SIMD-optimised (SSE/AVX) and processes entire
+  // scanlines in vectorised batches — not pixel-by-pixel like geq.
+  // `alpha=1` tells FFmpeg to fade the alpha channel rather than the luma,
+  // so transparently-composited overlays fade in/out smoothly.
+  //
+  // Chain:  [inputLabel] → format=rgba → fade-in → fade-out → [layerLabel_f]
+  //
+  const needsFade =
+    inType  === 'fadeIn'  || inType  === 'zoomIn'  ||
     outType === 'fadeOut' || outType === 'zoomOut';
 
   const extraFilters: string[] = [];
   let overlayInputLabel = inputLabel;
 
-  if (needsAlpha) {
-    let inAlphaExpr = '1';
-    let outAlphaExpr = '1';
+  if (needsFade) {
+    // Always start from an rgba stream so the alpha channel exists.
+    const rgbaLabel  = `[${layerLabel}_rgba]`;
+    const fadeLabel  = `[${layerLabel}_f]`;
+
+    // Build the fade chain as a single filter string.
+    // Multiple `fade` filters can be chained with commas inside one [] block.
+    const fadeParts: string[] = ['format=rgba'];
 
     if (inType === 'fadeIn' || inType === 'zoomIn') {
-      inAlphaExpr = `(1-pow(1-clip((T-${inStart.toFixed(3)})/${inDur > 0 ? inDur.toFixed(3) : '0.001'},0,1),3))`;
+      fadeParts.push(`fade=type=in:start_time=${inStart.toFixed(3)}:duration=${Math.max(inDur, 0.001).toFixed(3)}:alpha=1`);
     }
     if (outType === 'fadeOut' || outType === 'zoomOut') {
-      outAlphaExpr = `(1-pow(clip((T-${outStart.toFixed(3)})/${outDur > 0 ? outDur.toFixed(3) : '0.001'},0,1),3))`;
+      fadeParts.push(`fade=type=out:start_time=${outStart.toFixed(3)}:duration=${Math.max(outDur, 0.001).toFixed(3)}:alpha=1`);
     }
 
-    // Combined alpha: both in and out active when relevant
-    const alphaExpr = `clip(${inAlphaExpr}*${outAlphaExpr},0,1)`;
-    const alphaLabel = `[${layerLabel}_alpha]`;
-
-    // geq: T is the current timestamp in seconds (geq's time variable)
-    // alpha(X,Y) returns pixel's alpha value (0-255 range in geq)
-    extraFilters.push(
-      `${inputLabel}format=rgba,geq=r='r(X\\,Y)':g='g(X\\,Y)':b='b(X\\,Y)':a='alpha(X\\,Y)*${alphaExpr}'${alphaLabel}`
-    );
-    overlayInputLabel = alphaLabel;
+    extraFilters.push(`${inputLabel}${fadeParts.join(',')}${fadeLabel}`);
+    overlayInputLabel = fadeLabel;
   }
 
   return { xExpr, yExpr, extraFilters, overlayInputLabel };
