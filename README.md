@@ -1,5 +1,4 @@
 # MP4 Video Generator — POC
-sk-1T1JxKN5WHwHcc1nIZ3Fgxw2sQPCcnB0uBsFEb2kQEC
 > **FFmpeg + Puppeteer** backend service: accepts a JSON composition object → returns an MP4 video file.
 
 ## How it works
