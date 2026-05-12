@@ -1,4 +1,27 @@
 sk-ax2yT3mwL0966MrAZvyxaYwj3bZVvk5kxng4fFU7zONrYdm7
+sk-ax2yT3mwL0966MrAZvyxaYwj3bZVvk5kxng4fFU7zONrYdm7
+models:
+
+deepseek-r1-0528
+deepseek-v3.2
+=======================
+
+base url:
+https://agentrouter.org/v1
+=======================
+
+custom instructions for all modes:
+
+# No Browser Rule
+
+Never use the browser_action tool.
+Never take browser screenshots.
+Never send image_url in API requests.
+Only write and edit code directly in files.
+Do not open or launch any browser to test code.
+
+----------------------------------------------
+
 # MP4 Video Generator — POC
 > **FFmpeg + Puppeteer** backend service: accepts a JSON composition object → returns an MP4 video file.
 
